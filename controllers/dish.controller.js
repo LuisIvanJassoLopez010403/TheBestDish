@@ -7,7 +7,7 @@ const DisheModel = require('../models/dishes.model').DishModel;
  * @param res Actual Response
  */
 async function list(req, res) {
-    let dishList = await DisheModel.find({});
+    let dishList = DisheModel.find({});
     return res.json(dishList);
 
 }
@@ -22,7 +22,7 @@ async function getDish(req, res){
 
     let dishId = req.query.dishId;
 
-    let dishObj = await DisheModel.find({_id: dishId});
+    let dishObj = DisheModel.find({_id: dishId});
     return res.json(dishObj);
 }
 
@@ -40,13 +40,13 @@ async function createDish(req, res){
     let dishImgSrc = req.body.dishImgSrc;
     let dishType = req.body.dishType;
 
-    let dishObj = await new DisheModel({
+    let dishObj = new DisheModel({
         dishName: dishName,
         dishDescription: dishDescription,
         price: dishPrice,
         dishImgSrc: dishImgSrc,
         type: dishType
-    }).save();
+    });
 
     return res.json(dishObj);
 }
