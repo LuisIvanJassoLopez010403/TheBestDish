@@ -82,10 +82,12 @@ async function getOrder(req, res){
  * @returns {Number} Total price after discounts
  */
 function getTotal(orderObj) {
+    // Validacion de orden
     if (!orderObj || typeof orderObj !== "object") {
         throw new Error("The order is null or invalid");
     }
 
+    // Validación de platillos
     if (!Array.isArray(orderObj.dishes)) {
         throw new Error("Dishes must be an array");
     }
@@ -94,11 +96,12 @@ function getTotal(orderObj) {
         return 0;
     }
 
+    // Variables
     let total = 0;
     let dishCount = {};
     let maxDiscount = 0;
 
-    // Contar los platillos y bebidas
+    // Contar y validar los platillos y bebidas
     for (let dish of orderObj.dishes) {
 
         if (!dish || typeof dish !== "object") {
@@ -123,7 +126,7 @@ function getTotal(orderObj) {
         dishCount[dish._id].count++;
     }
 
-    // Calcular total y buscar el mayor descuento aplicable
+    // Calcular total y buscar el mayor descuento
     for (let dishId in dishCount) {
         let { count, price, type } = dishCount[dishId];
         let discount = 0;
@@ -141,9 +144,10 @@ function getTotal(orderObj) {
         maxDiscount = Math.max(maxDiscount, discount);
     }
 
-    // Aplicar solo el mayor descuento encontrado
+    // Aplicar el descuento más alto
     total -= maxDiscount;
-
+    
+    // Validar restricciones en códigos promocionales
     if (maxDiscount > 0 && orderObj.promoCode) {
         throw new Error("Promotional codes cannot be applied when a discount already exists in the order");
     }
@@ -152,38 +156,40 @@ function getTotal(orderObj) {
         throw new Error("Only one promotional code can be applied per order");
     }
 
-    // Aplicar código promocional solo si no hay descuento previo
-if (maxDiscount === 0 && orderObj.promoCode) {
-    let validPromoCodes = ["BIENVENIDA", "REFRESCATE", "COMBO", "PAREJA"];
+    // Aplicar código promocional si no hay descuento previo
+    if (maxDiscount === 0 && orderObj.promoCode) {
+        let validPromoCodes = ["BIENVENIDA", "REFRESCATE", "COMBO", "PAREJA"];
+        
+        if (!validPromoCodes.includes(orderObj.promoCode)) {
+            throw new Error("The promotional code is invalid");
+        }
+
+        let drinks = orderObj.dishes.filter(d => d.type === "Drink").sort((a, b) => a.price - b.price);
+        let meals = orderObj.dishes.filter(d => d.type === "Meal").sort((a, b) => a.price - b.price);
+
+        switch (orderObj.promoCode) {
+            case "BIENVENIDA":
+                total *= 0.7;
+                break;
+            case "REFRESCATE":
+                if (drinks.length > 0) {
+                    total -= drinks[drinks.length - 1].price;
+                }
+                break;
+            case "COMBO":
+                if (drinks.length > 0 && meals.length > 0) {
+                    total -= drinks[0].price + meals[0].price;
+                }
+                break;
+            case "PAREJA":
+                let topDrinks = drinks.slice(-2).reduce((acc, drink) => acc + drink.price, 0);
+                let topMeals = meals.slice(-2).reduce((acc, meal) => acc + meal.price, 0);
+                total -= topDrinks + topMeals;
+                break;
+        }
+    }
     
-    if (!validPromoCodes.includes(orderObj.promoCode)) {
-        throw new Error("The promotional code is invalid");
-    }
-
-    let drinks = orderObj.dishes.filter(d => d.type === "Drink").sort((a, b) => a.price - b.price);
-    let meals = orderObj.dishes.filter(d => d.type === "Meal").sort((a, b) => a.price - b.price);
-
-    switch (orderObj.promoCode) {
-        case "BIENVENIDA":
-            total *= 0.7;
-            break;
-        case "REFRESCATE":
-            if (drinks.length > 0) {
-                total -= drinks[drinks.length - 1].price;
-            }
-            break;
-        case "COMBO":
-            if (drinks.length > 0 && meals.length > 0) {
-                total -= drinks[0].price + meals[0].price;
-            }
-            break;
-        case "PAREJA":
-            let topDrinks = drinks.slice(-2).reduce((acc, drink) => acc + drink.price, 0);
-            let topMeals = meals.slice(-2).reduce((acc, meal) => acc + meal.price, 0);
-            total -= topDrinks + topMeals;
-            break;
-    }
-}
+    // Devolver cálculo total
     return Math.max(total, 0);
 }
 
